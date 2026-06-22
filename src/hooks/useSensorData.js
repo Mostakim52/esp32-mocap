@@ -1,13 +1,43 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const DEFAULT_ANGLES = { ax: 0, ay: 0, az: 0, gx: 0, gy: 0, gz: 0 }
+const DEFAULT_CALIBRATION = { ax: 0, ay: 0, az: 0, gx: 0, gy: 0, gz: 0 }
+
+function applyCalibration(data, calibration) {
+  return {
+    ax: data.ax - calibration.ax,
+    ay: data.ay - calibration.ay,
+    az: data.az - calibration.az,
+    gx: data.gx - calibration.gx,
+    gy: data.gy - calibration.gy,
+    gz: data.gz - calibration.gz,
+  }
+}
 
 function parseSerialLine(line) {
   const trimmed = line.trim()
   if (!trimmed) return null
 
+  // Handle ESP32 timestamp prefix (e.g., ":0.333081{"ax":...}")
+  let jsonStr = trimmed
+  const braceIndex = trimmed.indexOf('{')
+  if (braceIndex > 0) {
+    jsonStr = trimmed.substring(braceIndex)
+  }
+
+  // Handle double curly braces (e.g., "{{"ax":...}}")
+  if (jsonStr.startsWith('{{') && jsonStr.endsWith('}}')) {
+    jsonStr = jsonStr.substring(1, jsonStr.length - 1)
+  }
+
+  // Also handle stray leading/trailing braces from partial reads
+  // e.g. "}{"ax":...}" → strip leading "}"
+  while (jsonStr.startsWith('}{') || (jsonStr.startsWith('}') && !jsonStr.startsWith('}{'))) {
+    jsonStr = jsonStr.substring(1)
+  }
+
   try {
-    const json = JSON.parse(trimmed)
+    const json = JSON.parse(jsonStr)
     if (typeof json.ax === 'number' && typeof json.ay === 'number' && 
         typeof json.az === 'number' && typeof json.gx === 'number' &&
         typeof json.gy === 'number' && typeof json.gz === 'number') {
@@ -15,6 +45,22 @@ function parseSerialLine(line) {
     }
   } catch {
     // fall through to text parsers
+  }
+
+  // Try extracting just the first {...} JSON object from the line
+  const firstBrace = jsonStr.indexOf('{')
+  const lastBrace = jsonStr.lastIndexOf('}')
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    try {
+      const json = JSON.parse(jsonStr.substring(firstBrace, lastBrace + 1))
+      if (typeof json.ax === 'number' && typeof json.ay === 'number' && 
+          typeof json.az === 'number' && typeof json.gx === 'number' &&
+          typeof json.gy === 'number' && typeof json.gz === 'number') {
+        return { ax: json.ax, ay: json.ay, az: json.az, gx: json.gx, gy: json.gy, gz: json.gz }
+      }
+    } catch {
+      // fall through
+    }
   }
 
   const csv = trimmed.split(/[,\s]+/).map(Number).filter((n) => !Number.isNaN(n))
@@ -42,6 +88,7 @@ export function useSensorData() {
   const [previewMode, setPreviewMode] = useState('arm')
   const [isPlayingTogether, setIsPlayingTogether] = useState(false)
   const [serialSupported, setSerialSupported] = useState(true)
+  const [calibration, setCalibration] = useState(DEFAULT_CALIBRATION)
 
   const portRef = useRef(null)
   const readerRef = useRef(null)
@@ -50,6 +97,14 @@ export function useSensorData() {
   const recordingRef = useRef([])
   const playbackIntervalRef = useRef(null)
   const recordingTimeoutRef = useRef(null)
+  const isRecordingRef = useRef(false)
+  const calibrationRef = useRef(DEFAULT_CALIBRATION)
+  const modeRef = useRef('simulate')
+
+  // Keep refs in sync with state so serial read loop always sees latest values
+  useEffect(() => { isRecordingRef.current = isRecording }, [isRecording])
+  useEffect(() => { calibrationRef.current = calibration }, [calibration])
+  useEffect(() => { modeRef.current = mode }, [mode])
 
   const disconnectSerial = useCallback(async () => {
     abortRef.current?.abort()
@@ -114,7 +169,12 @@ export function useSensorData() {
           for (const line of lines) {
             const parsed = parseSerialLine(line)
             if (parsed) {
-              setAngles(parsed)
+              const calibrated = applyCalibration(parsed, calibrationRef.current)
+              
+              // Don't overwrite angles during playback — the playback effect owns them
+              if (modeRef.current !== 'playback') {
+                setAngles(calibrated)
+              }
               setSampleCount((count) => count + 1)
               
               // Add to serial output display
@@ -123,10 +183,13 @@ export function useSensorData() {
                 return newOutput.slice(-1000) // Keep last 1000 chars
               })
               
-              // Record if recording is active
-              if (isRecording && recordingRef.current) {
-                recordingRef.current.data.push(parsed)
+              // Record if recording is active (store calibrated data)
+              if (isRecordingRef.current && recordingRef.current) {
+                console.log('[Recording] Pushing data, total frames:', recordingRef.current.data.length + 1)
+                recordingRef.current.data.push(calibrated)
               }
+            } else {
+              console.log('[Parsing] Failed to parse line:', line)
             }
           }
         }
@@ -148,10 +211,17 @@ export function useSensorData() {
     const gx = 0
     const gy = 0
     const gz = 0
-    setAngles({ ax, ay, az, gx, gy, gz })
+    const simulatedData = { ax, ay, az, gx, gy, gz }
+    setAngles(simulatedData)
     setSampleCount((count) => count + 1)
+    
+    // Record if recording is active
+    if (isRecording && recordingRef.current) {
+      recordingRef.current.data.push(simulatedData)
+    }
+    
     setStatus('Manual simulation')
-  }, [])
+  }, [isRecording])
 
   const enableAutoSimulation = useCallback(() => {
     setMode('simulate')
@@ -166,6 +236,16 @@ export function useSensorData() {
     setStatus('Manual simulation — use sliders')
   }, [])
 
+  const calibrateSensor = useCallback(() => {
+    setCalibration(angles)
+    setStatus('Calibration saved - current position is now zero')
+  }, [angles])
+
+  const resetCalibration = useCallback(() => {
+    setCalibration(DEFAULT_CALIBRATION)
+    setStatus('Calibration reset to default')
+  }, [])
+
   const stopRecording = useCallback(() => {
     setIsRecording(false)
     if (recordingTimeoutRef.current) {
@@ -173,13 +253,16 @@ export function useSensorData() {
       recordingTimeoutRef.current = null
     }
     const recording = recordingRef.current
-    if (recording && recording.data && recording.data.length > 0) {
+    
+    // Always set recorded state so playback UI shows up
+    if (recording) {
+      const data = recording.data || []
       if (recording.type === 'arm') {
-        setRecordedArm(recording.data)
-        setStatus('Arm movement saved')
+        setRecordedArm(data)
+        setStatus(data.length > 0 ? 'Arm movement saved' : 'Arm recording stopped — no data captured')
       } else if (recording.type === 'leg') {
-        setRecordedLeg(recording.data)
-        setStatus('Leg movement saved')
+        setRecordedLeg(data)
+        setStatus(data.length > 0 ? 'Leg movement saved' : 'Leg recording stopped — no data captured')
       }
     } else {
       setStatus('Recording stopped — no data')
@@ -188,6 +271,7 @@ export function useSensorData() {
   }, [])
 
   const startRecording = useCallback((type) => {
+    console.log('[startRecording] Starting recording for:', type)
     setIsRecording(true)
     recordingRef.current = { type: type, data: [] }
     setStatus(`Recording ${type}...`)
@@ -272,12 +356,18 @@ export function useSensorData() {
       const gx = Math.sin(frame * 0.05) * 10
       const gy = Math.cos(frame * 0.05) * 10
       const gz = 0
-      setAngles({ ax, ay, az, gx, gy, gz })
+      const simulatedData = { ax, ay, az, gx, gy, gz }
+      setAngles(simulatedData)
       setSampleCount((count) => count + 1)
+      
+      // Record if recording is active
+      if (isRecording && recordingRef.current) {
+        recordingRef.current.data.push(simulatedData)
+      }
     }, 50)
 
     return () => window.clearInterval(id)
-  }, [mode, autoSimulate])
+  }, [mode, autoSimulate, isRecording])
 
   // Check Web Serial API support on mount
   useEffect(() => {
@@ -329,6 +419,7 @@ export function useSensorData() {
     recordingDuration,
     previewMode,
     serialSupported,
+    calibration,
     setMode,
     setSimulatedAngles,
     selectSimulateMode,
@@ -342,5 +433,7 @@ export function useSensorData() {
     stopPlayback,
     setRecordingDuration,
     setPreviewMode,
+    calibrateSensor,
+    resetCalibration,
   }
 }

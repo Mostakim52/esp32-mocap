@@ -5,8 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:https": "HTTPS=true vite",
-    "generate-certs": "node generate-certs.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

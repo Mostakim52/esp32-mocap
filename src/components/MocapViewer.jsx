@@ -4,31 +4,29 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { applyFrameRotations, createBindQuats, resolveBones } from '../lib/rigController'
 
-export default function MocapViewer({ modelPath, sensorData, autoSimulate, pathSpeed, previewMode, isPlayingTogether, recordedArm, recordedLeg, playbackFrame }) {
+export default function MocapViewer({ modelPath, sensorData, previewMode, isPlayingTogether, recordedArm, recordedLeg, playbackFrame, onCameraChange }) {
   const containerRef = useRef(null)
   // Use a ref so the animation loop always reads the latest sensor data
   // without needing to re-run the Three.js setup effect.
   const sensorDataRef = useRef({ ax: 0, ay: 0, az: 0, gx: 0, gy: 0, gz: 0 })
   const prevAxRef = useRef(0)
-  const modeRef = useRef('simulate')
 
   useEffect(() => {
     sensorDataRef.current = sensorData || { ax: 0, ay: 0, az: 0, gx: 0, gy: 0, gz: 0 }
   }, [sensorData])
 
-  // Track auto-simulate state for pathway animation logic
+  // Track state for pathway animation logic
   useEffect(() => {
     const container = containerRef.current
     if (container) {
-      container._isAutoSimulate = autoSimulate
-      container._pathSpeed = pathSpeed
+      container._pathSpeed = 1.0
       container._previewMode = previewMode
       container._isPlayingTogether = isPlayingTogether
       container._recordedArm = recordedArm
       container._recordedLeg = recordedLeg
       container._playbackFrame = playbackFrame
     }
-  }, [autoSimulate, pathSpeed, previewMode, isPlayingTogether, recordedArm, recordedLeg, playbackFrame])
+  }, [previewMode, isPlayingTogether, recordedArm, recordedLeg, playbackFrame])
 
   useEffect(() => {
     const container = containerRef.current
@@ -36,7 +34,7 @@ export default function MocapViewer({ modelPath, sensorData, autoSimulate, pathS
 
     // ── Scene ──────────────────────────────────────────────────────────────
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x0f172a)
+    scene.background = new THREE.Color(0x0a0f1e)
 
     // ── Camera ─────────────────────────────────────────────────────────────
     // Target: chest height ≈ 1.4 m on a ~1.75 m character (scale applied below).
@@ -154,7 +152,6 @@ export default function MocapViewer({ modelPath, sensorData, autoSimulate, pathS
     let bindQuats = null
     let animId    = 0
     let pathwayOffset = 0
-    let isAutoSimulate = false
 
     // ── Load GLB ───────────────────────────────────────────────────────────
     const loader = new GLTFLoader()
@@ -239,11 +236,9 @@ export default function MocapViewer({ modelPath, sensorData, autoSimulate, pathS
         axisLabelZ.position.copy(axes.position).add(new THREE.Vector3(0, 0, 1.2))
 
         // Animate pathway based on raw ax to simulate walking
-        // In manual mode, only move when ax is actively changing
         const axDelta = data.ax - prevAxRef.current
-        const isAutoSimulate = container._isAutoSimulate || false
         const speed = container._pathSpeed || 1.0
-        if (isAutoSimulate || Math.abs(axDelta) > 0.01) {
+        if (Math.abs(axDelta) > 0.01) {
           // Use constant speed when ax is non-zero
           const movement = (Math.abs(data.ax) > 0.1 ? 0.02 : 0) * speed
           pathwayOffset += movement
@@ -255,6 +250,12 @@ export default function MocapViewer({ modelPath, sensorData, autoSimulate, pathS
 
       controls.update()
       renderer.render(scene, camera)
+
+      // Emit camera quaternion for the axis indicator overlay
+      if (onCameraChange) {
+        const q = camera.quaternion
+        onCameraChange({ x: q.x, y: q.y, z: q.z, w: q.w })
+      }
     }
     animate()
 
@@ -284,7 +285,7 @@ export default function MocapViewer({ modelPath, sensorData, autoSimulate, pathS
   return (
     <div
       ref={containerRef}
-      className="h-full min-h-[480px] w-full overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950"
+      className="relative h-full min-h-[500px] w-full flex-1 overflow-hidden rounded-xl border border-slate-800/80 bg-slate-950 shadow-2xl shadow-black/30"
     />
   )
 }

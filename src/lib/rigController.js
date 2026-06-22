@@ -6,7 +6,7 @@ import { Euler, Quaternion, Vector3 } from 'three'
 // relaxed standing position. Sensor roll then swings them forward/back
 // within the ROLL_RANGE window — matching the ±23° the legs already use.
 const ARM_HANG_OFFSET_DEG = -90
-const ARM_ROLL_SCALE      = 90.0   // Increased for larger movements
+const ARM_ROLL_SCALE      = 120.0   // Increased for larger movements
 
 // Two-Bone IK constants
 const UPPER_ARM_LENGTH = 3.0       // Length of upper arm (shoulder to elbow)
@@ -15,14 +15,14 @@ const POLE_VECTOR = new Vector3(0, -1, 0)  // Elbow bends downward by default
 
 // Palm-held sensor orientation constants
 const SENSOR_FORWARD_AXIS = 'ay'   // Which axis corresponds to forward/backward swing
-const SENSOR_SCALE = 4.0           // Scale factor for sensor sensitivity
-const ARM_SWING_AMPLITUDE = 1.5    // Maximum arm swing amplitude
+const SENSOR_SCALE = 6.0           // Scale factor for sensor sensitivity (increased)
+const ARM_SWING_AMPLITUDE = 2.0    // Maximum arm swing amplitude (increased)
 
 // Legs: UpLeg bind is ~180° flipped on Z, so we negate both axes to
 // make positive roll = leg swings forward.
 const LEG_PITCH_SIGN = -1
 const LEG_ROLL_SIGN  = -1
-const LEG_ROLL_SCALE = 90.0        // Increased for larger movements
+const LEG_ROLL_SCALE = 120.0       // Increased for larger movements
 
 // ─── Euler/Quaternion order per limb type ─────────────────────────────────────
 export const LIMB_ROTATION_CONFIG = {
@@ -186,7 +186,7 @@ function applyRoll(bone, bindQuats, rollDeg, config, opts = {}) {
 
 /**
  * Drive all four limbs from raw sensor x, y, z values.
- * Arms use Two-Bone IK solver for realistic shoulder/elbow movement.
+ * Arms use direct rotation for natural swing motion with straight elbows.
  * Legs use direct rotation.
  */
 export function applyFrameRotations(bones, bindQuats, sensorData, previewMode = 'both', armSensorData = null, legSensorData = null) {
@@ -196,61 +196,55 @@ export function applyFrameRotations(bones, bindQuats, sensorData, previewMode = 
   // Use raw accelerometer x, y, z values directly
   const data = sensorData || { ax: 0, ay: 0, az: 0, gx: 0, gy: 0, gz: 0 }
 
-  // Arms: use Two-Bone IK solver
+  // Arms: use direct rotation for natural swing motion
   // Only apply if previewMode is 'arm' or 'both', or if armSensorData is provided (play together mode)
   if (previewMode === 'arm' || previewMode === 'both' || armSensorData) {
     const armData = armSensorData || data
     
-    // Convert sensor data to target position for IK solver
-    // Optimized for palm-held MPU6050 during walking
-    // When holding sensor in palm and swinging arm:
-    // - Forward swing (arm moves forward) -> ay increases (acceleration in forward direction)
-    // - Backward swing (arm moves back) -> ay decreases
-    // - Lateral movement -> ax changes
-    // - Use gyroscope for smoother swing detection
-    const swingAmplitude = Math.min(Math.abs(armData.ay) * SENSOR_SCALE, ARM_SWING_AMPLITUDE)
-    const swingDirection = Math.sign(armData.ay)
+    // Direct rotation mapping for natural arm swing
+    // ay controls forward/backward swing (pitch)
+    // ax controls lateral movement (roll)
+    // az controls vertical movement (additional pitch)
     
-    // Base position for arms (hanging at sides)
-    const baseForward = 0.5
-    const baseHeight = 1.2
-    const baseLateral = 0.8  // Arms slightly away from body
+    // Left arm: rotate 90° around Y to face Z plane
+    applyRawRotation(bones.leftArm, bindQuats, armData, armCfg, { 
+      hangOffsetYDeg: 270,
+      hangOffsetDeg: -85, 
+      scaleX: ARM_ROLL_SCALE, 
+      sign: 1 
+    })
+    // Roll left arm around shoulder (Y axis)
+    _euler.set(0, 0, 0, armCfg.order)
+    _euler.y = Math.PI * -1.5
+    bones.leftArm.quaternion.multiply(_quat.setFromEuler(_euler))
     
-    // Left arm: forward swing (ay positive) moves target forward
-    const leftTarget = new Vector3(
-      baseLateral + armData.az * 0.3,  // Lateral position
-      baseHeight + swingAmplitude * swingDirection,  // Forward/backward swing (primary)
-      baseForward + armData.ax * 0.2  // Vertical movement
-    )
+    // Right arm: rotate 90° around Y to face Z plane, opposite movement direction
+    const rightArmData = {
+      ax: -armData.ax,
+      ay: -armData.ay,
+      az: -armData.az,
+      gx: -armData.gx,
+      gy: -armData.gy,
+      gz: -armData.gz,
+    }
+    applyRawRotation(bones.rightArm, bindQuats, rightArmData, armCfg, { 
+      hangOffsetYDeg: 270,
+      hangOffsetDeg: -85, 
+      scaleX: ARM_ROLL_SCALE, 
+      sign: -1 
+    })
+    // Roll right arm 180° around shoulder (Y axis)
+    _euler.set(0, 0, 0, armCfg.order)
+    _euler.y = Math.PI*-1.5
+    bones.rightArm.quaternion.multiply(_quat.setFromEuler(_euler))
     
-    // Right arm: mirror the movement
-    const rightTarget = new Vector3(
-      -baseLateral - armData.az * 0.3,  // Mirror lateral
-      baseHeight + swingAmplitude * swingDirection,  // Same forward/backward
-      baseForward + armData.ax * 0.2  // Same vertical
-    )
-    
-    // Apply Two-Bone IK to left arm
-    solveTwoBoneIK(
-      bones.leftArm,
-      bones.leftForeArm,
-      leftTarget,
-      POLE_VECTOR,
-      UPPER_ARM_LENGTH,
-      FOREARM_LENGTH,
-      bindQuats
-    )
-    
-    // Apply Two-Bone IK to right arm
-    solveTwoBoneIK(
-      bones.rightArm,
-      bones.rightForeArm,
-      rightTarget,
-      POLE_VECTOR,
-      UPPER_ARM_LENGTH,
-      FOREARM_LENGTH,
-      bindQuats
-    )
+    // Keep forearms straight (no rotation) to maintain elbow straight
+    if (bones.leftForeArm) {
+      bones.leftForeArm.quaternion.copy(bindQuats[bones.leftForeArm.name])
+    }
+    if (bones.rightForeArm) {
+      bones.rightForeArm.quaternion.copy(bindQuats[bones.rightForeArm.name])
+    }
   }
 
   // Legs: use direct rotation
@@ -265,12 +259,19 @@ export function applyFrameRotations(bones, bindQuats, sensorData, previewMode = 
 // Apply raw accelerometer x, y, z values directly to bone rotation
 function applyRawRotation(bone, bindQuats, sensorData, config, opts = {}) {
   if (!bone) return
-  const { hangOffsetDeg = 0, scaleX = 1, sign = 1 } = opts
+  const { hangOffsetDeg = 0, hangOffsetYDeg = 0, scaleX = 1, sign = 1 } = opts
 
   // Reset to bind pose every frame — no drift
   bone.quaternion.copy(bindQuats[bone.name])
 
-  // Optional static offset (e.g. bring arms down from T-pose)
+  // Optional Y-axis offset (e.g. rotate arms from X plane to Z plane)
+  if (hangOffsetYDeg !== 0) {
+    _euler.set(0, 0, 0, config.order)
+    _euler.y = (hangOffsetYDeg * Math.PI) / 180
+    bone.quaternion.multiply(_quat.setFromEuler(_euler))
+  }
+
+  // Optional pitch-axis offset (e.g. bring arms down from T-pose)
   if (hangOffsetDeg !== 0) {
     _euler.set(0, 0, 0, config.order)
     _euler[config.pitchAxis] = (hangOffsetDeg * Math.PI) / 180

@@ -1,1 +1,35 @@
+# Dependencies
 node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.*
+
+# Local dev
+certs/
+*.pem
+
+# ESP-IDF
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+*.bin
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+npm-debug.log*
+
+# Vercel
+.vercel/
