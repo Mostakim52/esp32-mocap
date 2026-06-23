@@ -1,16 +1,18 @@
-function SectionLabel({ children, icon }) {
+import { useTheme } from '../context/ThemeContext'
+
+function SectionLabel({ children, icon, isDark }) {
   return (
     <div className="flex items-center gap-2">
-      {icon && <span className="text-slate-500">{icon}</span>}
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">{children}</span>
+      {icon && <span className={isDark ? 'text-slate-500' : 'text-gray-400'}>{icon}</span>}
+      <span className={`text-[11px] font-semibold uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>{children}</span>
     </div>
   )
 }
 
-function TrackCard({ label, sensorData, accent }) {
+function TrackCard({ label, sensorData, accent, isDark }) {
   return (
     <div className={`rounded-lg border p-3 ${accent}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{label}</p>
+      <p className={`text-[11px] font-semibold uppercase tracking-widest ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{label}</p>
       <div className="mt-2 flex gap-4">
         {[
           { key: 'ax', name: 'AX' },
@@ -18,8 +20,8 @@ function TrackCard({ label, sensorData, accent }) {
           { key: 'az', name: 'AZ' },
         ].map(({ key, name }) => (
           <div key={key}>
-            <span className="text-[10px] font-medium text-slate-500">{name}</span>
-            <p className="font-mono text-base tabular-nums text-slate-100">{sensorData[key].toFixed(3)}</p>
+            <span className={`text-[10px] font-medium ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>{name}</span>
+            <p className={`font-mono text-base tabular-nums ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{sensorData[key].toFixed(3)}</p>
           </div>
         ))}
       </div>
@@ -41,6 +43,9 @@ export default function SensorPanel({
   recordingDuration,
   previewMode,
   serialSupported,
+  armScale,
+  legScale,
+  pathSpeed,
   onModelChange,
   onConnectSerial,
   onDisconnectSerial,
@@ -51,9 +56,15 @@ export default function SensorPanel({
   onStopPlayback,
   onRecordingDurationChange,
   onPreviewModeChange,
+  onArmScaleChange,
+  onLegScaleChange,
+  onPathSpeedChange,
 }) {
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
+
   return (
-    <aside className="flex w-full flex-col gap-5 overflow-y-auto border-r border-slate-800/80 bg-slate-900/60 p-5 text-slate-200 backdrop-blur-sm lg:w-[340px]">
+    <aside className={`flex w-full flex-col gap-5 overflow-y-auto border-r p-5 backdrop-blur-sm lg:w-[340px] ${isDark ? 'border-slate-800/80 bg-slate-900/60 text-slate-200' : 'border-gray-200 bg-white/80 text-gray-800'}`}>
       {!serialSupported && (
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
           <p className="text-xs font-semibold text-amber-400">
@@ -66,11 +77,11 @@ export default function SensorPanel({
       )}
 
       <div className="space-y-3">
-        <SectionLabel>Character</SectionLabel>
+        <SectionLabel isDark={isDark}>Character</SectionLabel>
         <select
           value={model}
           onChange={(event) => onModelChange(event.target.value)}
-          className="w-full rounded-lg border border-slate-700/80 bg-slate-950/60 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/20"
+          className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition ${isDark ? 'border-slate-700/80 bg-slate-950/60 text-white focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/20' : 'border-gray-300 bg-white text-gray-900 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20'}`}
         >
           <option value="male">Male</option>
           <option value="female">Female</option>
@@ -78,14 +89,65 @@ export default function SensorPanel({
       </div>
 
       <div className="space-y-3">
-        <SectionLabel>Input Source</SectionLabel>
+        <SectionLabel isDark={isDark}>Movement Scale</SectionLabel>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Arms</label>
+            <span className="font-mono text-xs text-cyan-500">{armScale.toFixed(1)}x</span>
+          </div>
+          <input
+            type="range"
+            min="0.1"
+            max="3.0"
+            step="0.1"
+            value={armScale}
+            onChange={(e) => onArmScaleChange(parseFloat(e.target.value))}
+            className="w-full accent-cyan-500"
+          />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Legs</label>
+            <span className="font-mono text-xs text-cyan-500">{legScale.toFixed(1)}x</span>
+          </div>
+          <input
+            type="range"
+            min="0.1"
+            max="3.0"
+            step="0.1"
+            value={legScale}
+            onChange={(e) => onLegScaleChange(parseFloat(e.target.value))}
+            className="w-full accent-cyan-500"
+          />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Path Speed</label>
+            <span className="font-mono text-xs text-cyan-500">{pathSpeed.toFixed(1)}x</span>
+          </div>
+          <input
+            type="range"
+            min="0.1"
+            max="5.0"
+            step="0.1"
+            value={pathSpeed}
+            onChange={(e) => onPathSpeedChange(parseFloat(e.target.value))}
+            className="w-full accent-cyan-500"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <SectionLabel isDark={isDark}>Input Source</SectionLabel>
         <button
           type="button"
           onClick={connected ? onDisconnectSerial : onConnectSerial}
           className={`w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
             connected
               ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-lg shadow-rose-500/20 hover:shadow-rose-500/30'
-              : 'border border-slate-700/80 bg-slate-800/50 text-slate-300 hover:border-slate-600 hover:bg-slate-800 hover:text-white'
+              : isDark
+                ? 'border border-slate-700/80 bg-slate-800/50 text-slate-300 hover:border-slate-600 hover:bg-slate-800 hover:text-white'
+                : 'border border-gray-300 bg-gray-100 text-gray-600 hover:border-gray-400 hover:bg-gray-200 hover:text-gray-900'
           }`}
         >
           <span className="flex items-center justify-center gap-2">
@@ -105,21 +167,21 @@ export default function SensorPanel({
           </span>
         </button>
         {status && (
-          <p className="text-[11px] text-slate-500">{status}</p>
+          <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>{status}</p>
         )}
       </div>
 
       {connected && (
-        <div className="space-y-3 rounded-xl border border-slate-700/60 bg-slate-800/30 p-4">
-          <SectionLabel icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /></svg>}>
+        <div className={`space-y-3 rounded-xl border p-4 ${isDark ? 'border-slate-700/60 bg-slate-800/30' : 'border-gray-200 bg-gray-50'}`}>
+          <SectionLabel isDark={isDark} icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /></svg>}>
             Recording
           </SectionLabel>
 
           <div className="space-y-3">
             <div>
-              <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-400">
+              <div className={`mb-1.5 flex items-center justify-between text-[11px] ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
                 <span>Duration</span>
-                <span className="font-mono tabular-nums text-slate-300">{recordingDuration}s</span>
+                <span className={`font-mono tabular-nums ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>{recordingDuration}s</span>
               </div>
               <input
                 type="number"
@@ -128,16 +190,16 @@ export default function SensorPanel({
                 step="1"
                 value={recordingDuration}
                 onChange={(event) => onRecordingDurationChange(Number(event.target.value))}
-                className="w-full rounded-lg border border-slate-700/60 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/20"
+                className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${isDark ? 'border-slate-700/60 bg-slate-950/60 text-white focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/20' : 'border-gray-300 bg-white text-gray-900 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20'}`}
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-[11px] text-slate-400">Preview Mode</label>
+              <label className={`mb-1.5 block text-[11px] ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Preview Mode</label>
               <select
                 value={previewMode}
                 onChange={(event) => onPreviewModeChange(event.target.value)}
-                className="w-full rounded-lg border border-slate-700/60 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/20"
+                className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${isDark ? 'border-slate-700/60 bg-slate-950/60 text-white focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/20' : 'border-gray-300 bg-white text-gray-900 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20'}`}
               >
                 <option value="arm">Arm Only</option>
                 <option value="leg">Leg Only</option>
@@ -146,7 +208,7 @@ export default function SensorPanel({
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="min-w-[70px] text-[11px] text-slate-400">Arm:</span>
+                <span className={`min-w-[70px] text-[11px] ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Arm:</span>
                 {!isRecording ? (
                   <button
                     type="button"
@@ -159,14 +221,14 @@ export default function SensorPanel({
                   <button
                     type="button"
                     onClick={onStopRecording}
-                    className="flex-1 rounded-lg bg-slate-600 px-3 py-2 text-sm font-medium text-white transition-all hover:bg-slate-500"
+                    className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium text-white transition-all ${isDark ? 'bg-slate-600 hover:bg-slate-500' : 'bg-gray-400 hover:bg-gray-500'}`}
                   >
                     Stop
                   </button>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <span className="min-w-[70px] text-[11px] text-slate-400">Leg:</span>
+                <span className={`min-w-[70px] text-[11px] ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Leg:</span>
                 {!isRecording ? (
                   <button
                     type="button"
@@ -179,7 +241,7 @@ export default function SensorPanel({
                   <button
                     type="button"
                     onClick={onStopRecording}
-                    className="flex-1 rounded-lg bg-slate-600 px-3 py-2 text-sm font-medium text-white transition-all hover:bg-slate-500"
+                    className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium text-white transition-all ${isDark ? 'bg-slate-600 hover:bg-slate-500' : 'bg-gray-400 hover:bg-gray-500'}`}
                   >
                     Stop
                   </button>
@@ -191,11 +253,11 @@ export default function SensorPanel({
       )}
 
       {(recordedArm || recordedLeg) && (
-        <div className="space-y-3 rounded-xl border border-slate-700/60 bg-slate-800/30 p-4">
-          <SectionLabel icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3" /></svg>}>
+        <div className={`space-y-3 rounded-xl border p-4 ${isDark ? 'border-slate-700/60 bg-slate-800/30' : 'border-gray-200 bg-gray-50'}`}>
+          <SectionLabel isDark={isDark} icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3" /></svg>}>
             Playback
           </SectionLabel>
-          <div className="text-[11px] text-slate-500">
+          <div className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
             {recordedArm && <span>{recordedArm.length} arm frames</span>}
             {recordedArm && recordedLeg && <span> &middot; </span>}
             {recordedLeg && <span>{recordedLeg.length} leg frames</span>}
@@ -224,14 +286,14 @@ export default function SensorPanel({
               <button
                 type="button"
                 onClick={onStopPlayback}
-                className="w-full rounded-lg bg-slate-600 px-3 py-2 text-sm font-medium text-white transition-all hover:bg-slate-500"
+                className={`w-full rounded-lg px-3 py-2 text-sm font-medium text-white transition-all ${isDark ? 'bg-slate-600 hover:bg-slate-500' : 'bg-gray-400 hover:bg-gray-500'}`}
               >
                 Stop Playback
               </button>
             )}
             {isPlaying && (
-              <div className="text-center text-[11px] text-slate-400">
-                Frame <span className="font-mono tabular-nums text-slate-300">{playbackFrame}</span>
+              <div className={`text-center text-[11px] ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                Frame <span className={`font-mono tabular-nums ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>{playbackFrame}</span>
               </div>
             )}
           </div>
@@ -239,23 +301,25 @@ export default function SensorPanel({
       )}
 
       <div className="space-y-2">
-        <SectionLabel>Live Tracks</SectionLabel>
+        <SectionLabel isDark={isDark}>Live Tracks</SectionLabel>
         <TrackCard
           label="Primary (Left)"
           sensorData={angles}
-          accent="border-cyan-500/20 bg-cyan-500/5"
+          accent={isDark ? 'border-cyan-500/20 bg-cyan-500/5' : 'border-cyan-300/40 bg-cyan-50'}
+          isDark={isDark}
         />
         <TrackCard
           label="Mirrored (Right)"
           sensorData={angles}
-          accent="border-violet-500/20 bg-violet-500/5"
+          accent={isDark ? 'border-violet-500/20 bg-violet-500/5' : 'border-violet-300/40 bg-violet-50'}
+          isDark={isDark}
         />
       </div>
 
-      <div className="mt-auto border-t border-slate-800/60 pt-4 text-[11px] text-slate-500">
+      <div className={`mt-auto border-t pt-4 text-[11px] ${isDark ? 'border-slate-800/60 text-slate-500' : 'border-gray-200 text-gray-400'}`}>
         <div className="flex items-center justify-between">
           <span>Samples</span>
-          <span className="font-mono tabular-nums text-slate-400">{sampleCount}</span>
+          <span className={`font-mono tabular-nums ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{sampleCount}</span>
         </div>
       </div>
     </aside>

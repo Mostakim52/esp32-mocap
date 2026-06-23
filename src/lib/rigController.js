@@ -189,7 +189,7 @@ function applyRoll(bone, bindQuats, rollDeg, config, opts = {}) {
  * Arms use direct rotation for natural swing motion with straight elbows.
  * Legs use direct rotation.
  */
-export function applyFrameRotations(bones, bindQuats, sensorData, previewMode = 'both', armSensorData = null, legSensorData = null) {
+export function applyFrameRotations(bones, bindQuats, sensorData, previewMode = 'both', armSensorData = null, legSensorData = null, armScale = 1.0, legScale = 1.0) {
   const armCfg = LIMB_ROTATION_CONFIG.arm
   const legCfg = LIMB_ROTATION_CONFIG.leg
 
@@ -210,7 +210,7 @@ export function applyFrameRotations(bones, bindQuats, sensorData, previewMode = 
     applyRawRotation(bones.leftArm, bindQuats, armData, armCfg, { 
       hangOffsetYDeg: 270,
       hangOffsetDeg: -85, 
-      scaleX: ARM_ROLL_SCALE, 
+      scaleX: ARM_ROLL_SCALE * armScale, 
       sign: 1 
     })
     // Roll left arm around shoulder (Y axis)
@@ -230,7 +230,7 @@ export function applyFrameRotations(bones, bindQuats, sensorData, previewMode = 
     applyRawRotation(bones.rightArm, bindQuats, rightArmData, armCfg, { 
       hangOffsetYDeg: 270,
       hangOffsetDeg: -85, 
-      scaleX: ARM_ROLL_SCALE, 
+      scaleX: ARM_ROLL_SCALE * armScale, 
       sign: -1 
     })
     // Roll right arm 180° around shoulder (Y axis)
@@ -251,8 +251,8 @@ export function applyFrameRotations(bones, bindQuats, sensorData, previewMode = 
   // Only apply if previewMode is 'leg' or 'both', or if legSensorData is provided (play together mode)
   if (previewMode === 'leg' || previewMode === 'both' || legSensorData) {
     const legData = legSensorData || data
-    applyRawRotation(bones.leftUpLeg,  bindQuats, legData, legCfg, { scaleX: LEG_ROLL_SCALE, sign: LEG_PITCH_SIGN * LEG_ROLL_SIGN * -1 })
-    applyRawRotation(bones.rightUpLeg, bindQuats, legData, legCfg, { scaleX: LEG_ROLL_SCALE, sign: LEG_PITCH_SIGN * LEG_ROLL_SIGN *  1 })
+    applyRawRotation(bones.leftUpLeg,  bindQuats, legData, legCfg, { scaleX: LEG_ROLL_SCALE * legScale, sign: LEG_PITCH_SIGN * LEG_ROLL_SIGN * -1 })
+    applyRawRotation(bones.rightUpLeg, bindQuats, legData, legCfg, { scaleX: LEG_ROLL_SCALE * legScale, sign: LEG_PITCH_SIGN * LEG_ROLL_SIGN *  1 })
   }
 }
 
