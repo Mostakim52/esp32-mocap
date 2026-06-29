@@ -180,23 +180,6 @@ export default function MocapViewer({ modelPath, sensorData, previewMode, isPlay
     const grid = new THREE.GridHelper(6, 24, isDark ? 0x334155 : 0xcbd5e1, isDark ? 0x1e293b : 0xe2e8f0)
     scene.add(grid)
 
-    // ── Background image ─────────────────────────────────────────────────
-    const bgPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({ depthWrite: false, transparent: true }),
-    )
-    bgPlane.position.set(0, 4, -8)
-    scene.add(bgPlane)
-    new THREE.TextureLoader().load('/logos.png', (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace
-      bgPlane.material.map = tex
-      bgPlane.material.needsUpdate = true
-      const img = tex.image
-      const aspect = img.width / img.height
-      const height = 2
-      bgPlane.scale.set(height * aspect, height, 1)
-    })
-
     // Add directional arrows to pathway
     function createArrowTexture() {
       const canvas = document.createElement('canvas')

@@ -57,9 +57,11 @@ export default function App() {
       <header className={`flex items-center gap-3 border-b px-5 py-3 backdrop-blur-md ${isDark ? 'border-slate-800/80 bg-slate-950/80' : 'border-gray-200 bg-white/80'}`}>
         <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${isDark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-cyan-100 text-cyan-600'}`}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2a4 4 0 0 0-4 4v2a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z" />
-            <path d="M6 10v1a6 6 0 0 0 12 0v-1" />
-            <line x1="12" y1="17" x2="12" y2="22" />
+            <circle cx="12" cy="5" r="2" />
+            <path d="M10 22V17L7 14V10l5-1 5 1v4l-3 3v5" />
+            <circle cx="7" cy="14" r="1" fill="currentColor" stroke="none" />
+            <circle cx="17" cy="10" r="1" fill="currentColor" stroke="none" />
+            <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none" />
           </svg>
         </div>
         <div>
