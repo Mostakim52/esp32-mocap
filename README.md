@@ -41,7 +41,7 @@
 ## 🔌 Wiring
 
 <p align="center">
-  <img src="wiring_diagram.jpg" alt="Wiring Diagram" width="600" />
+  <img src="public/wiring_diagram.jpg" alt="Wiring Diagram" width="600" />
 </p>
 
 ### Pin Mapping
