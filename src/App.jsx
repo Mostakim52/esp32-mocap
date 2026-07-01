@@ -150,7 +150,7 @@ export default function App() {
           {connected && serialOutput && (
             <div
               ref={serialEndRef}
-              className={`pointer-events-none absolute inset-x-4 top-4 z-10 max-h-[140px] overflow-y-auto rounded-lg border p-3 font-mono text-[11px] leading-relaxed backdrop-blur-sm ${isDark ? 'border-slate-700/40 bg-slate-950/70 text-emerald-400/80' : 'border-gray-300/40 bg-white/70 text-emerald-600/80'}`}
+              className={`pointer-events-none absolute left-4 top-4 z-10 max-h-[140px] max-w-[45%] overflow-y-auto rounded-lg border p-3 font-mono text-[11px] leading-relaxed backdrop-blur-sm ${isDark ? 'border-slate-700/40 bg-slate-950/70 text-emerald-400/80' : 'border-gray-300/40 bg-white/70 text-emerald-600/80'}`}
             >
               <pre className="whitespace-pre-wrap">{serialOutput}</pre>
             </div>

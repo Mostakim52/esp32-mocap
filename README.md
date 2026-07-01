@@ -11,6 +11,10 @@
   visualized in a browser-based 3D character viewer.
 </p>
 
+<p align="center">
+  <img src="public/main_image.jpg" alt="Wiring Diagram" width="600" />
+</p>
+
 ---
 
 ## ✨ Features
